@@ -12,7 +12,7 @@ def parse_data_from_kafka_message(sdf, schema):
     #now expand col to multiple top-level columns
     for idx, field in enumerate(schema):
         sdf = sdf.withColumn(field.name, col.getItem(idx).cast(field.dataType))
-    return sdf.select([field.name for field in schema])
+    return sdf
 
 if __name__ == "__main__":
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
             .load()
 
     #Parse the fields in the value column of the message
-    lines = df.selectExpr("CAST(value AS STRING)")
+    lines = df.selectExpr("CAST(value AS STRING)", "timestamp")
 
     #Specify the schema of the fields
     hardwarezoneSchema = StructType([ \
@@ -39,10 +39,11 @@ if __name__ == "__main__":
         ])
 
     #Use the function to parse the fields
-    lines = parse_data_from_kafka_message(lines, hardwarezoneSchema)
+    lines = parse_data_from_kafka_message(lines, hardwarezoneSchema) \
+        .select("topic","author","content","timestamp")
 
     #Select the content field and output
-    contents = lines.select("content") \
+    contents = lines \
         .writeStream \
         .queryName("WriteContent") \
         .outputMode("append") \
